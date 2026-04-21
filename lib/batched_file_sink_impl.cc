@@ -44,21 +44,30 @@ std::filesystem::path generate_file_path(const std::string& dir,
     return dir / std::filesystem::path(buffer.str());
 }
 
+std::chrono::nanoseconds get_elapsed_time(int nsamples, float sample_rate)
+{
+    double seconds = static_cast<double>(nsamples) / static_cast<double>(sample_rate);
+    return std::chrono::nanoseconds(static_cast<int64_t>(seconds * 1e9));
+}
+
 } // namespace
 
 namespace gr {
 namespace spectre {
 
 
-batched_file_sink::sptr batched_file_sink::make(const std::string& dir,
-                                                const std::string& tag,
-                                                const std::string& input_type,
-                                                const float batch_size,
-                                                const float sample_rate,
-                                                const bool group_by_date,
-                                                const bool is_tagged,
-                                                const std::string& tag_key,
-                                                const float initial_tag_value)
+batched_file_sink::sptr batched_file_sink::make(
+    const std::string& dir,
+    const std::string& tag,
+    const std::string& input_type,
+    const float batch_size,
+    const float sample_rate,
+    const bool group_by_date,
+    const bool is_tagged,
+    const std::string& tag_key,
+    const float initial_tag_value,
+    const std::optional<std::chrono::time_point<std::chrono::system_clock,
+                                                std::chrono::nanoseconds>> start_time)
 {
     return gnuradio::make_block_sptr<batched_file_sink_impl>(dir,
                                                              tag,
@@ -68,33 +77,40 @@ batched_file_sink::sptr batched_file_sink::make(const std::string& dir,
                                                              group_by_date,
                                                              is_tagged,
                                                              tag_key,
-                                                             initial_tag_value);
+                                                             initial_tag_value,
+                                                             start_time);
 };
 
 
-batched_file_sink_impl::batched_file_sink_impl(const std::string& dir,
-                                               const std::string& tag,
-                                               const std::string& input_type,
-                                               const float batch_size,
-                                               const float sample_rate,
-                                               const bool group_by_date,
-                                               const bool is_tagged,
-                                               const std::string& tag_key,
-                                               const float initial_tag_value)
+batched_file_sink_impl::batched_file_sink_impl(
+    const std::string& dir,
+    const std::string& tag,
+    const std::string& input_type,
+    const float batch_size,
+    const float sample_rate,
+    const bool group_by_date,
+    const bool is_tagged,
+    const std::string& tag_key,
+    const float initial_tag_value,
+    const std::optional<std::chrono::time_point<std::chrono::system_clock,
+                                                std::chrono::nanoseconds>> start_time)
     : gr::sync_block("batched_file_sink",
                      gr::io_signature::make(1, 1, get_sizeof_stream_item(input_type)),
                      gr::io_signature::make(0, 0, 0)),
       d_dir(dir),
       d_tag(tag),
       d_input_type(input_type),
+      d_sample_rate(sample_rate),
       d_sizeof_stream_item(get_sizeof_stream_item(input_type)),
       d_nsamples_per_batch(get_num_samples_per_batch(batch_size, sample_rate)),
       d_is_tagged(is_tagged),
       d_group_by_date(group_by_date),
       d_tag_key(pmt::string_to_symbol(tag_key)),
       d_initial_tag_value(initial_tag_value),
-      d_batch_time(batch_time{ std::tm{}, 0 }),
       d_buffer_state(buffer_state::EMPTY),
+      d_batch_time(batch_time{ std::tm{}, 0 }),
+      d_start_time(start_time),
+      d_nsamples(0),
       d_nbuffered_samples(0),
       d_data_buffer(std::vector<char>(d_nsamples_per_batch * d_sizeof_stream_item, 0)),
       d_fdata(nullptr),
@@ -111,13 +127,13 @@ batched_file_sink_impl::batched_file_sink_impl(const std::string& dir,
 
 batched_file_sink_impl::~batched_file_sink_impl() { close_fstreams(); }
 
-void batched_file_sink_impl::init()
+void batched_file_sink_impl::init(std::chrono::nanoseconds time_elapsed)
 {
-    set_batch_time();
-    
+    set_batch_time(time_elapsed);
+
     // If the fstreams are open, close them first.
     close_fstreams();
-    
+
     open_fstreams();
 
     if (d_is_tagged) {
@@ -132,20 +148,22 @@ void batched_file_sink_impl::flush()
     close_fstreams();
 }
 
-void batched_file_sink_impl::set_batch_time()
+void batched_file_sink_impl::set_batch_time(std::chrono::nanoseconds time_elapsed)
 {
-    using namespace std::chrono;
+    // Get the system time at the first call to work.
+    if (!d_start_time.has_value()) {
+        d_start_time = std::chrono::system_clock::now();
+    }
 
-    // Get the current system time.
-    time_point<system_clock, nanoseconds> now = system_clock::now();
-
-    // Convert this to UTC (to seconds precision).
-    std::time_t now_c = system_clock::to_time_t(now);
+    // Convert the start time UTC (to seconds precision).
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        batch_time = *d_start_time + time_elapsed;
+    std::time_t now_c = std::chrono::system_clock::to_time_t(batch_time);
     std::tm* utc_now = std::gmtime(&now_c);
 
-    // Then, extract the millisecond component.
-    microseconds us =
-        duration_cast<microseconds>(now.time_since_epoch() - seconds(now_c));
+    // Then, extract the microsecond component.
+    std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(
+        batch_time.time_since_epoch() - std::chrono::seconds(now_c));
 
     d_batch_time.utc_tm = *utc_now;
     d_batch_time.us = static_cast<int>(us.count());
@@ -207,6 +225,7 @@ void batched_file_sink_impl::flush_data_buffer()
 {
     // Always flush the entire buffer to file.
     d_fdata.write(d_data_buffer.data(), d_sizeof_stream_item * d_nsamples_per_batch);
+    d_nsamples += d_nbuffered_samples;
     d_nbuffered_samples = 0;
 }
 
@@ -321,7 +340,7 @@ int batched_file_sink_impl::work(int noutput_items,
 
     // If the data buffer is empty, initialise a new batch.
     if (d_buffer_state == buffer_state::EMPTY) {
-        init();
+        init(get_elapsed_time(d_nsamples, d_sample_rate));
         d_buffer_state = buffer_state::FILLING;
     }
 

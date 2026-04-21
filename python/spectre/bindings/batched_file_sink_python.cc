@@ -14,9 +14,10 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(batched_file_sink.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(974219b1eb7e27c7ac3cf6048eece7fc)                     */
+/* BINDTOOL_HEADER_FILE_HASH(87c949d662d56ac7b76cc759ab161186)                     */
 /***********************************************************************************/
 
+#include <pybind11/chrono.h>
 #include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -46,6 +47,7 @@ void bind_batched_file_sink(py::module& m)
            py::arg("is_tagged") = false,
            py::arg("tag_key") = "freq",
            py::arg("initial_tag_value") = 0,
+           py::arg("start_time") = std::nullopt,
            D(batched_file_sink,make)
         )
         

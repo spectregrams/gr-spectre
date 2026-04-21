@@ -10,6 +10,8 @@
 #include <gnuradio/spectre/api.h>
 #include <gnuradio/sync_block.h>
 
+#include <optional>
+
 namespace gr {
 namespace spectre {
 
@@ -48,17 +50,23 @@ public:
      * `<year>/<month>/<day>`). \param is_tagged If true, metadata from stream tags is
      * recorded. \param tag_key Key used to extract values from stream tags if `is_tagged`
      * is true. \param initial_tag_value Default value used if no tag is present for the
-     * first sample and `is_tagged` is true. 0 for not provided.
+     * first sample and `is_tagged` is true. 0 for not provided. \param start_time
+     * Override the start time of the first batch, which by default is the current system
+     * time at the first call to work.
      */
-    static sptr make(const std::string& dir = ".",
-                     const std::string& tag = "spectre",
-                     const std::string& input_type = "fc32",
-                     const float batch_size = 1.0,
-                     const float sample_rate = 32000,
-                     const bool group_by_date = false,
-                     const bool is_tagged = false,
-                     const std::string& tag_key = "freq",
-                     const float initial_tag_value = 0);
+    static sptr
+    make(const std::string& dir = ".",
+         const std::string& tag = "spectre",
+         const std::string& input_type = "fc32",
+         const float batch_size = 1.0,
+         const float sample_rate = 32000,
+         const bool group_by_date = false,
+         const bool is_tagged = false,
+         const std::string& tag_key = "freq",
+         const float initial_tag_value = 0,
+         const std::optional<
+             std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>
+             start_time = std::nullopt);
 };
 
 } // namespace spectre

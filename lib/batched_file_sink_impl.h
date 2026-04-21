@@ -31,15 +31,19 @@ enum buffer_state {
 class batched_file_sink_impl : public batched_file_sink
 {
 public:
-    batched_file_sink_impl(const std::string& dir,
-                           const std::string& tag,
-                           const std::string& input_type,
-                           const float batch_size,
-                           const float sample_rate,
-                           const bool group_by_date,
-                           const bool is_tagged,
-                           const std::string& tag_key,
-                           const float initial_tag_value);
+    batched_file_sink_impl(
+        const std::string& dir,
+        const std::string& tag,
+        const std::string& input_type,
+        const float batch_size,
+        const float sample_rate,
+        const bool group_by_date,
+        const bool is_tagged,
+        const std::string& tag_key,
+        const float initial_tag_value,
+        const std::optional<
+            std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>
+            start_time);
     ~batched_file_sink_impl();
     int work(int noutput_items,
              gr_vector_const_void_star& in,
@@ -49,15 +53,21 @@ private:
     const std::string d_dir;
     const std::string d_tag;
     const std::string d_input_type;
+    const float d_sample_rate;
     const size_t d_sizeof_stream_item;
     const int d_nsamples_per_batch;
     const bool d_is_tagged;
     const bool d_group_by_date;
     const pmt::pmt_t d_tag_key;
     const float d_initial_tag_value;
-
-    batch_time d_batch_time;
     buffer_state d_buffer_state;
+
+    // Timestamp batches assuming a constant sample rate.
+    batch_time d_batch_time;
+    std::optional<
+        std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>
+        d_start_time;
+    int d_nsamples;
 
     // Data buffer.
     int d_nbuffered_samples;
@@ -71,10 +81,10 @@ private:
     tag_t d_active_tag;
 
 
-    void init();
+    void init(std::chrono::nanoseconds time_elapsed);
     void flush();
 
-    void set_batch_time();
+    void set_batch_time(std::chrono::nanoseconds time_elapsed);
 
     void open_fstream(std::ofstream& f, const std::string& extension);
     void open_fstreams();

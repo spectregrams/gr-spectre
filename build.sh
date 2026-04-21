@@ -9,7 +9,7 @@ fi
 # Rebuild the module.
 mkdir build
 cd build
-cmake ..
+cmake .. -DENABLE_TESTING=ON
 make -j$(nproc)
 make install
 ldconfig
