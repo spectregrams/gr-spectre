@@ -41,23 +41,21 @@ message(STATUS "Building for version: ${VERSION} / ${LIBVER}")
 ########################################################################
 # Build and register unit test
 ########################################################################
-include(GrTest)
+if(ENABLE_TESTING)
+    include(GrTest)
 
-# If your unit tests require special include paths, add them here
-#include_directories()
-# List all files that contain Boost.UTF unit tests here
-list(APPEND test_spectre_sources
-)
-# Anything we need to link to for the unit tests go here
-list(APPEND GR_TEST_TARGET_DEPS gnuradio-spectre)
-
-if(NOT test_spectre_sources)
-    MESSAGE(STATUS "No C++ unit tests... skipping")
-    return()
-endif(NOT test_spectre_sources)
-
-foreach(qa_file ${test_spectre_sources})
-    GR_ADD_CPP_TEST("spectre_${qa_file}"
-        ${CMAKE_CURRENT_SOURCE_DIR}/${qa_file}
+    # If your unit tests require special include paths, add them here
+    #include_directories()
+    # List all files that contain Boost.UTF unit tests here
+    list(APPEND test_spectre_sources
+        qa_batched_file_sink.cc
     )
-endforeach(qa_file)
+    # Anything we need to link to for the unit tests go here
+    list(APPEND GR_TEST_TARGET_DEPS gnuradio-spectre gnuradio-blocks)
+
+    foreach(qa_file ${test_spectre_sources})
+        GR_ADD_CPP_TEST("spectre_${qa_file}"
+            ${CMAKE_CURRENT_SOURCE_DIR}/${qa_file}
+        )
+    endforeach(qa_file)
+endif(ENABLE_TESTING)
