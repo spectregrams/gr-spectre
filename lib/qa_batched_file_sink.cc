@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(batched_file_sink_run)
     const fs::path tmpdir = fs::temp_directory_path() / "batched_file_sink";
     fs::create_directories(tmpdir);
 
-    const int total_samples = 20;
+    const size_t total_samples = 20;
     auto source = gr::blocks::vector_source_c::make(
         std::vector<gr_complex>(total_samples, { 1, 0 }));
 

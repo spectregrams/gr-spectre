@@ -19,7 +19,7 @@ namespace {
 static constexpr int NUM_DIGITS_MICROSECONDS = 6;
 static constexpr int INPUT_PORT = 0;
 
-int get_num_samples_per_batch(const float batch_size, const float sample_rate)
+size_t get_num_samples_per_batch(const float batch_size, const float sample_rate)
 {
     // Naturally, we can't have a non-integral number of samples in a batch,
     // so we floor to ensure that the elapsed time per batch doesn't surpass the
@@ -44,7 +44,7 @@ std::filesystem::path generate_file_path(const std::string& dir,
     return dir / std::filesystem::path(buffer.str());
 }
 
-std::chrono::nanoseconds get_elapsed_time(int nsamples, float sample_rate)
+std::chrono::nanoseconds get_elapsed_time(size_t nsamples, float sample_rate)
 {
     double seconds = static_cast<double>(nsamples) / static_cast<double>(sample_rate);
     return std::chrono::nanoseconds(static_cast<int64_t>(seconds * 1e9));
@@ -212,8 +212,8 @@ int batched_file_sink_impl::fill_data_buffer(int noutput_items, const char* in)
     // Fill the buffer with as many samples as possible, without exceeding its fixed size.
     // Keep a record of how many we've consumed, so we can report back to gnuradio
     // runtime.
-    int nconsumed_items =
-        std::min(noutput_items, d_nsamples_per_batch - d_nbuffered_samples);
+    int nconsumed_items = std::min(static_cast<size_t>(noutput_items),
+                                   d_nsamples_per_batch - d_nbuffered_samples);
     std::memcpy(d_data_buffer.data() + d_nbuffered_samples * d_sizeof_stream_item,
                 in,
                 nconsumed_items * d_sizeof_stream_item);
