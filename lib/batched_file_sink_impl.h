@@ -55,7 +55,7 @@ private:
     const std::string d_input_type;
     const float d_sample_rate;
     const size_t d_sizeof_stream_item;
-    const int d_nsamples_per_batch;
+    const size_t d_nsamples_per_batch;
     const bool d_is_tagged;
     const bool d_group_by_date;
     const pmt::pmt_t d_tag_key;
@@ -67,15 +67,15 @@ private:
     std::optional<
         std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>
         d_start_time;
-    int d_nsamples;
+    size_t d_nsamples;
 
     // Data buffer.
-    int d_nbuffered_samples;
+    size_t d_nbuffered_samples;
     std::vector<char> d_data_buffer;
     std::ofstream d_fdata;
 
     // Tag buffer.
-    int d_nbuffered_tags;
+    size_t d_nbuffered_tags;
     std::vector<float> d_tags_buffer;
     std::ofstream d_ftags;
     tag_t d_active_tag;
