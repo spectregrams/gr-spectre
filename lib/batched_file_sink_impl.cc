@@ -119,7 +119,7 @@ batched_file_sink_impl::batched_file_sink_impl(
       // tags (one per sample), but the actual number of tags per batch may vary due to
       // the nature of the GNU Radio runtime. So practically, it's unlikely this will ever
       // fill entirely.
-      d_tags_buffer(std::vector<float>(d_nsamples_per_batch * 2, 0)),
+      d_tags_buffer(std::vector<tag_entry>(d_nsamples_per_batch)),
       d_ftags(nullptr),
       d_active_tag()
 {
@@ -296,11 +296,10 @@ void batched_file_sink_impl::fill_tag_buffer(int nconsumed_items)
         // offset to the next tag.
         tag_t next_tag{ tags[n] };
         float tag_value = pmt::to_float(d_active_tag.value);
-        float num_samples = static_cast<float>(next_tag.offset - d_active_tag.offset);
+        uint64_t num_samples = next_tag.offset - d_active_tag.offset;
 
         // Record the tag value, along with the number of samples at that value.
-        d_tags_buffer[2 * d_nbuffered_tags] = tag_value;
-        d_tags_buffer[2 * d_nbuffered_tags + 1] = num_samples;
+        d_tags_buffer[d_nbuffered_tags] = {tag_value, num_samples};
         d_nbuffered_tags++;
 
         // Finally, update the active tag.
@@ -315,20 +314,20 @@ void batched_file_sink_impl::fill_tag_buffer(int nconsumed_items)
         // to that tag at the next call to work. But they'll be recorded in the next
         // batch.
         float tag_value = pmt::to_float(d_active_tag.value);
-        float num_samples_remaining = static_cast<float>(abs_end - d_active_tag.offset);
-        d_tags_buffer[2 * d_nbuffered_tags] = tag_value;
-        d_tags_buffer[2 * d_nbuffered_tags + 1] = num_samples_remaining;
+        uint64_t num_samples_remaining = abs_end - d_active_tag.offset;
+        d_tags_buffer[d_nbuffered_tags] = {tag_value, num_samples_remaining};
         d_nbuffered_tags++;
     }
 }
 
 void batched_file_sink_impl::flush_tag_buffer()
 {
-    const char* s = reinterpret_cast<const char*>(d_tags_buffer.data());
-    // Flush the tag buffer, avoiding garbage values. In contrast to the data buffer, it's
-    // (almost certainly) only partially filled.
-    size_t num_chars = 2 * d_nbuffered_tags * sizeof(float);
-    d_ftags.write(s, num_chars);
+    // Flush tag entries one by one to avoid struct padding in the binary file.
+    // Each entry is written as [value_float (4 bytes)][nsamples_uint64 (8 bytes)].
+    for (size_t i = 0; i < d_nbuffered_tags; i++) {
+        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].value),   sizeof(float));
+        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].nsamples), sizeof(uint64_t));
+    }
     d_nbuffered_tags = 0;
 };
 
