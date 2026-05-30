@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(batched_file_sink.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(87c949d662d56ac7b76cc759ab161186)                     */
+/* BINDTOOL_HEADER_FILE_HASH(8b59dddcd3970778cfd9edb941ad8ed2)                     */
 /***********************************************************************************/
 
 #include <pybind11/chrono.h>

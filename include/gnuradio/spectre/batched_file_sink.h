@@ -30,8 +30,8 @@ namespace spectre {
  *
  *     <timestamp>_<tag>.hdr
  *
- * which interleaves the tag values and the number of samples corresponding to that
- * tag, recording both as single precision floats.
+ * which interleaves the tag values (each as float) and the number of samples
+ * corresponding to that tag (each as uint64_t).
  */
 class SPECTRE_API batched_file_sink : virtual public gr::sync_block
 {

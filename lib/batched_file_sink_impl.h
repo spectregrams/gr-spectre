@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <utility>
 
 namespace gr {
 namespace spectre {
@@ -21,6 +22,10 @@ struct batch_time {
     std::tm utc_tm;
     int us;
 };
+
+
+// Tag value (first) and the number of samples belonging to that tag (second).
+typedef std::pair<float, uint64_t> stream_tag;
 
 enum buffer_state {
     EMPTY = 0,
@@ -76,7 +81,7 @@ private:
 
     // Tag buffer.
     size_t d_nbuffered_tags;
-    std::vector<float> d_tags_buffer;
+    std::vector<stream_tag> d_tags_buffer;
     std::ofstream d_ftags;
     tag_t d_active_tag;
 
