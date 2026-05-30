@@ -9,11 +9,11 @@
 
 #include <gnuradio/spectre/batched_file_sink.h>
 
-#include <cstdint>
 #include <gnuradio/types.h>
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <utility>
 
 namespace gr {
 namespace spectre {
@@ -23,10 +23,9 @@ struct batch_time {
     int us;
 };
 
-struct tag_entry {
-    float value;
-    uint64_t nsamples;
-};
+
+// Tag value (first) and the number of samples belonging to that tag (second).
+typedef std::pair<float, uint64_t> stream_tag;
 
 enum buffer_state {
     EMPTY = 0,
@@ -82,7 +81,7 @@ private:
 
     // Tag buffer.
     size_t d_nbuffered_tags;
-    std::vector<tag_entry> d_tags_buffer;
+    std::vector<stream_tag> d_tags_buffer;
     std::ofstream d_ftags;
     tag_t d_active_tag;
 

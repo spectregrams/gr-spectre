@@ -119,7 +119,7 @@ batched_file_sink_impl::batched_file_sink_impl(
       // tags (one per sample), but the actual number of tags per batch may vary due to
       // the nature of the GNU Radio runtime. So practically, it's unlikely this will ever
       // fill entirely.
-      d_tags_buffer(std::vector<tag_entry>(d_nsamples_per_batch)),
+      d_tags_buffer(std::vector<stream_tag>(d_nsamples_per_batch)),
       d_ftags(nullptr),
       d_active_tag()
 {
@@ -299,7 +299,7 @@ void batched_file_sink_impl::fill_tag_buffer(int nconsumed_items)
         uint64_t num_samples = next_tag.offset - d_active_tag.offset;
 
         // Record the tag value, along with the number of samples at that value.
-        d_tags_buffer[d_nbuffered_tags] = {tag_value, num_samples};
+        d_tags_buffer[d_nbuffered_tags] = { tag_value, num_samples };
         d_nbuffered_tags++;
 
         // Finally, update the active tag.
@@ -315,18 +315,20 @@ void batched_file_sink_impl::fill_tag_buffer(int nconsumed_items)
         // batch.
         float tag_value = pmt::to_float(d_active_tag.value);
         uint64_t num_samples_remaining = abs_end - d_active_tag.offset;
-        d_tags_buffer[d_nbuffered_tags] = {tag_value, num_samples_remaining};
+        d_tags_buffer[d_nbuffered_tags] = { tag_value, num_samples_remaining };
         d_nbuffered_tags++;
     }
 }
 
 void batched_file_sink_impl::flush_tag_buffer()
 {
-    // Flush tag entries one by one to avoid struct padding in the binary file.
-    // Each entry is written as [value_float (4 bytes)][nsamples_uint64 (8 bytes)].
+    // Flush tag entries one by one to avoid container padding in the binary file.
+    // The tag values are interleaved with the number of samples per tag.
     for (size_t i = 0; i < d_nbuffered_tags; i++) {
-        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].value),   sizeof(float));
-        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].nsamples), sizeof(uint64_t));
+        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].first),
+                      sizeof(stream_tag::first_type));
+        d_ftags.write(reinterpret_cast<const char*>(&d_tags_buffer[i].second),
+                      sizeof(stream_tag::second_type));
     }
     d_nbuffered_tags = 0;
 };
